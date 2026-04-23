@@ -361,3 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Runtime data for Animal Rescue Management System (per-machine test data)
+animals.txt
+
+# Claude Code local settings (per-user tool permissions, not shared)
+.claude/
