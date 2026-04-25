@@ -58,6 +58,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Adopter.cs" />
+    <Compile Include="AdopterRepository.cs" />
+    <Compile Include="Adoption.cs" />
+    <Compile Include="AdoptionRepository.cs" />
     <Compile Include="Animal.cs" />
     <Compile Include="AnimalRepository.cs" />
     <Compile Include="BreedData.cs" />

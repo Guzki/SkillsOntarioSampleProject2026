@@ -2,11 +2,19 @@
 // Program.cs
 // Animal Rescue Management System — Skills Ontario (Reference Solution)
 // Application entry point. Owns the main menu loop and one method per menu
-// action — Add, Remove, Search, Display All, Three Oldest, Help, Exit. Every
-// screen calls into ConsoleUI for prompts and rendering, and into
-// AnimalRepository for data. The menu loop wraps each action in try/catch so
-// the app survives any unexpected exception (file corruption, malformed
-// input, etc.) without crashing.
+// action. Every screen calls into ConsoleUI for prompts and rendering, and
+// into the appropriate repository for data. The menu loop wraps each action
+// in try/catch so the app survives any unexpected exception (file corruption,
+// malformed input, etc.) without crashing.
+//
+// Top-level menu (the base Skills Ontario tier):
+//   Add Animal · Remove Animal · Search · Display All Sorted By Species ·
+//   Three Oldest Per Species · Help · Exit
+//
+// People & Adoptions sub-menu (Part 9 — the relational extension):
+//   Add Adopter · List Adopters · Record Adoption · List Adoptions ·
+//   Return Adoption
+//
 // Reference: workbook/04-add-screen.md and onwards
 // =============================================================================
 
@@ -27,7 +35,12 @@ namespace SkillsOntarioSampleProject2026
 		static void Main(string[] args)
 		{
 			ConsoleUI.SetupConsole();
+
+			// Three repositories, three save files. Each loads independently;
+			// missing files are normal on first run.
 			AnimalRepository.LoadFromFile();
+			AdopterRepository.LoadFromFile();
+			AdoptionRepository.LoadFromFile();
 
 			while (true)
 			{
@@ -39,8 +52,9 @@ namespace SkillsOntarioSampleProject2026
 				Console.WriteLine("3. Search");
 				Console.WriteLine("4. Display all (sorted by species)");
 				Console.WriteLine("5. Display three oldest per species");
-				Console.WriteLine("6. Help");
-				Console.WriteLine("7. Exit");
+				Console.WriteLine("6. People & Adoptions");
+				Console.WriteLine("7. Help");
+				Console.WriteLine("8. Exit");
 
 				try
 				{
@@ -64,9 +78,12 @@ namespace SkillsOntarioSampleProject2026
 							DisplayThreeOldestPerSpecies();
 							break;
 						case "6":
-							ShowHelp();
+							PeopleAndAdoptionsMenu();
 							break;
 						case "7":
+							ShowHelp();
+							break;
+						case "8":
 							return;
 						default:
 							ConsoleUI.WriteLineColor("Invalid choice. Please try again.", ConsoleColor.Red);
@@ -74,6 +91,59 @@ namespace SkillsOntarioSampleProject2026
 							break;
 					}
 
+				}
+				catch (Exception ex)
+				{
+					ConsoleUI.WriteLineColor($"An error occurred: {ex.Message}", ConsoleColor.Red);
+					ConsoleUI.Pause();
+				}
+			}
+		}
+
+		// Sub-menu for the relational extension (Part 9). Loops with its own
+		// numbered menu until the user picks "Back to main menu", at which
+		// point control returns to the main loop.
+		private static void PeopleAndAdoptionsMenu()
+		{
+			while (true)
+			{
+				ConsoleUI.DrawHeaders("People & Adoptions");
+
+				Console.WriteLine("1. Add adopter");
+				Console.WriteLine("2. List adopters");
+				Console.WriteLine("3. Record adoption");
+				Console.WriteLine("4. List adoptions");
+				Console.WriteLine("5. Return adoption");
+				Console.WriteLine("6. Back to main menu");
+
+				try
+				{
+					var choice = Console.ReadLine();
+
+					switch (choice)
+					{
+						case "1":
+							AddAdopter();
+							break;
+						case "2":
+							ListAdopters();
+							break;
+						case "3":
+							RecordAdoption();
+							break;
+						case "4":
+							DisplayAdoptions();
+							break;
+						case "5":
+							ReturnAdoption();
+							break;
+						case "6":
+							return;
+						default:
+							ConsoleUI.WriteLineColor("Invalid choice. Please try again.", ConsoleColor.Red);
+							ConsoleUI.Pause();
+							break;
+					}
 				}
 				catch (Exception ex)
 				{
@@ -316,17 +386,207 @@ namespace SkillsOntarioSampleProject2026
 			Console.WriteLine("  3. Search — finds animals by name or species (substring match).");
 			Console.WriteLine("  4. Display all (sorted by species) — lists every animal, optionally filtered.");
 			Console.WriteLine("  5. Display three oldest per species — three oldest within each species.");
-			Console.WriteLine("  6. Help — this screen.");
-			Console.WriteLine("  7. Exit — closes the program.");
+			Console.WriteLine("  6. People & Adoptions — sub-menu for adopters and adoption records.");
+			Console.WriteLine("  7. Help — this screen.");
+			Console.WriteLine("  8. Exit — closes the program.");
 			Console.WriteLine();
-			ConsoleUI.WriteLineColor("Data file:", ConsoleColor.Cyan);
-			Console.WriteLine("  Animals are stored in animals.txt next to this .exe.");
-			Console.WriteLine("  The save file is plain text, pipe-delimited (one animal per line).");
+			ConsoleUI.WriteLineColor("Data files:", ConsoleColor.Cyan);
+			Console.WriteLine("  animals.txt    — every animal in the shelter.");
+			Console.WriteLine("  adopters.txt   — registered adopters (Part 9 extension).");
+			Console.WriteLine("  adoptions.txt  — link rows pairing animals with adopters.");
+			Console.WriteLine("  All three are plain text, pipe-delimited, one row per line.");
 			Console.WriteLine();
 			ConsoleUI.WriteLineColor("Date format:", ConsoleColor.Cyan);
-			Console.WriteLine("  Birthdays use this machine's short-date pattern.");
-			Console.WriteLine("  Copying animals.txt to a machine with a different locale may not load cleanly.");
+			Console.WriteLine("  Birthdays and adoption dates use this machine's short-date pattern.");
+			Console.WriteLine("  Copying the save files to a machine with a different locale may not load cleanly.");
 
+			ConsoleUI.Pause();
+		}
+
+
+		// =====================================================================
+		// People & Adoptions screens (Part 9 — relational extension).
+		// =====================================================================
+
+		// Prompts for the 4 contact fields and saves a new adopter. Same shape
+		// as AddAnimal but with no PromptChoice — every field is free text.
+		private static void AddAdopter()
+		{
+			ConsoleUI.DrawHeaders("Add Adopter");
+
+			Adopter adopter = new Adopter();
+			adopter.Name = ConsoleUI.Prompt("Name: ");
+			adopter.Email = ConsoleUI.Prompt("Email: ");
+			adopter.Phone = ConsoleUI.Prompt("Phone: ");
+			adopter.Address = ConsoleUI.Prompt("Address: ");
+
+			AdopterRepository.Add(adopter);
+			AdopterRepository.SaveToFile();
+
+			ConsoleUI.WriteLineColor($"Adopter added with ID {adopter.Id}.", ConsoleColor.Green);
+			ConsoleUI.Pause();
+		}
+
+		// Lists every registered adopter in a five-column table. Pattern C
+		// from Part 5g, applied to the Adopter list instead of Animal.
+		private static void ListAdopters()
+		{
+			ConsoleUI.DrawHeaders("Adopters");
+
+			string[] headers = { "ID", "Name", "Email", "Phone", "Address" };
+			List<string[]> rows = new List<string[]>();
+			foreach (Adopter adopter in AdopterRepository.adopters.OrderBy(a => a.Name))
+			{
+				rows.Add(new string[]
+				{
+					adopter.Id,
+					adopter.Name,
+					adopter.Email,
+					adopter.Phone,
+					adopter.Address
+				});
+			}
+
+			ConsoleUI.PrintTable(headers, rows);
+			ConsoleUI.Pause();
+		}
+
+		// Pairs an animal with an adopter and saves the link as a new adoption
+		// row. Shows available animals (those not currently adopted) and all
+		// adopters first so the user can see the IDs they're about to enter.
+		// Validates that both IDs exist and that the animal isn't already
+		// adopted before recording the row.
+		private static void RecordAdoption()
+		{
+			ConsoleUI.DrawHeaders("Record Adoption");
+
+			// Show available animals — anything without an Active adoption row.
+			ConsoleUI.WriteLineColor("Available animals:", ConsoleColor.Cyan);
+			string[] animalHeaders = { "ID", "Name", "Species", "Breed" };
+			List<string[]> animalRows = new List<string[]>();
+			foreach (Animal a in AnimalRepository.animals.OrderBy(a => a.Species).ThenBy(a => a.Name))
+			{
+				if (AdoptionRepository.GetActiveAdoptionForAnimal(a.Id) != null) continue;
+				animalRows.Add(new string[] { a.Id, a.Name, a.Species, a.Breed });
+			}
+			ConsoleUI.PrintTable(animalHeaders, animalRows);
+
+			// Show all adopters.
+			Console.WriteLine();
+			ConsoleUI.WriteLineColor("Registered adopters:", ConsoleColor.Cyan);
+			string[] adopterHeaders = { "ID", "Name", "Email" };
+			List<string[]> adopterRows = new List<string[]>();
+			foreach (Adopter ad in AdopterRepository.adopters.OrderBy(a => a.Name))
+			{
+				adopterRows.Add(new string[] { ad.Id, ad.Name, ad.Email });
+			}
+			ConsoleUI.PrintTable(adopterHeaders, adopterRows);
+
+			// Collect the animal ID. PadLeft with '0' lets the user type "5"
+			// for animal "00000005" — same shorthand as RemoveAnimal.
+			Console.WriteLine();
+			string animalId = ConsoleUI.Prompt("Animal ID to adopt out: ").PadLeft(8, '0');
+			Animal animal = AnimalRepository.animals.FirstOrDefault(a => a.Id == animalId);
+			if (animal == null)
+			{
+				ConsoleUI.WriteLineColor("No such animal.", ConsoleColor.Red);
+				ConsoleUI.Pause();
+				return;
+			}
+			if (AdoptionRepository.GetActiveAdoptionForAnimal(animalId) != null)
+			{
+				ConsoleUI.WriteLineColor("That animal is already adopted.", ConsoleColor.Red);
+				ConsoleUI.Pause();
+				return;
+			}
+
+			// Collect the adopter ID. ToUpper because the prefix is uppercase.
+			string adopterId = ConsoleUI.Prompt("Adopter ID (e.g. AD000001): ").ToUpper();
+			Adopter adopter = AdopterRepository.adopters.FirstOrDefault(a => a.Id == adopterId);
+			if (adopter == null)
+			{
+				ConsoleUI.WriteLineColor("No such adopter.", ConsoleColor.Red);
+				ConsoleUI.Pause();
+				return;
+			}
+
+			// Build and save the adoption row. AdoptionDate defaults to today;
+			// you could prompt for a custom date if needed.
+			Adoption adoption = new Adoption
+			{
+				AnimalId = animalId,
+				AdopterId = adopterId,
+				AdoptionDate = DateTime.Today,
+				Status = "Active"
+			};
+			AdoptionRepository.Add(adoption);
+			AdoptionRepository.SaveToFile();
+
+			ConsoleUI.WriteLineColor(
+				$"\n{animal.Name} adopted by {adopter.Name} on {adoption.AdoptionDate.ToShortDateString()}.",
+				ConsoleColor.Green);
+			ConsoleUI.Pause();
+		}
+
+		// Lists every adoption row with the animal's name and the adopter's
+		// name resolved by ID lookup. This is a manual LINQ join — for each
+		// adoption row, FirstOrDefault into the animals and adopters lists to
+		// pull the human-readable names. If a referenced ID has been removed,
+		// shows "(missing)" instead of crashing.
+		private static void DisplayAdoptions()
+		{
+			ConsoleUI.DrawHeaders("Adoptions");
+
+			string[] headers = { "Adoption ID", "Animal", "Species", "Adopter", "Date", "Status" };
+			List<string[]> rows = new List<string[]>();
+
+			// Newest adoptions first.
+			foreach (Adoption adoption in AdoptionRepository.adoptions.OrderByDescending(a => a.AdoptionDate))
+			{
+				// Manual join: look up the animal and adopter by their IDs.
+				Animal animal = AnimalRepository.animals.FirstOrDefault(a => a.Id == adoption.AnimalId);
+				Adopter adopter = AdopterRepository.adopters.FirstOrDefault(a => a.Id == adoption.AdopterId);
+
+				// Defensive — adoption rows can outlive the records they point at
+				// if an animal or adopter was removed. Show a placeholder rather
+				// than crash.
+				rows.Add(new string[]
+				{
+					adoption.Id,
+					animal != null ? animal.Name : "(missing)",
+					animal != null ? animal.Species : "—",
+					adopter != null ? adopter.Name : "(missing)",
+					adoption.AdoptionDate.ToShortDateString(),
+					adoption.Status
+				});
+			}
+
+			ConsoleUI.PrintTable(headers, rows);
+			ConsoleUI.Pause();
+		}
+
+		// Marks an active adoption as Returned. The historical row stays in
+		// adoptions.txt — Status flips from "Active" to "Returned" — so an
+		// animal that's been adopted, returned, and re-adopted shows three
+		// distinct rows in DisplayAdoptions, not one overwritten record.
+		private static void ReturnAdoption()
+		{
+			ConsoleUI.DrawHeaders("Return Adoption");
+
+			string animalId = ConsoleUI.Prompt("Animal ID being returned: ").PadLeft(8, '0');
+			Adoption active = AdoptionRepository.GetActiveAdoptionForAnimal(animalId);
+			if (active == null)
+			{
+				ConsoleUI.WriteLineColor("That animal is not currently adopted.", ConsoleColor.Red);
+				ConsoleUI.Pause();
+				return;
+			}
+
+			// Status flip — not a delete. The historical record stays.
+			active.Status = "Returned";
+			AdoptionRepository.SaveToFile();
+
+			ConsoleUI.WriteLineColor("Adoption marked Returned.", ConsoleColor.Green);
 			ConsoleUI.Pause();
 		}
 
