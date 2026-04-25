@@ -33,7 +33,7 @@ Keep the whole solution to five source files. No interfaces, no DI, no abstracti
 
 ```
 ConsoleUI.cs        — pre-built static TUI helper class (paste-in at comp)
-BreedData.cs        — static Dictionary<string, string[]> species → valid breeds
+BreedData.cs        — static Dictionary<string, string[]> species → canonical breeds (used as the choice list for breed PromptChoice)
 Animal.cs           — 12 properties + ToLine() + FromLine(string)
 AnimalRepository.cs — static class, owns the List<Animal>, file I/O + queries
 Program.cs          — Main + menu loop + one method per menu action
@@ -44,15 +44,17 @@ Program.cs          — Main + menu loop + one method per menu action
 Static class. Colors are baked into the helpers so the student never thinks about the palette at the call site. This file represents work the student does *before* the comp and pastes in on day one — it's a productivity tool, not a teaching focus.
 
 Surface:
-- `SetupConsole()`, `DrawHeader(string title)`, `Pause()`
+- `SetupConsole()`, `DrawHeaders(string message)`, `Pause()`
 - `WriteColor(string, ConsoleColor)`, `WriteLineColor(string, ConsoleColor)`
 - `Prompt(string label) → string`
 - `PromptInt(string label) → int`
 - `PromptDouble(string label) → double`
-- `PromptDecimal(string label, decimal max) → decimal`
-- `PromptDate(string label) → DateTime` (uses `DateTime.TryParseExact` with `"dd/MM/yyyy"`)
-- `PromptChoice(string label, string[] options) → string` (numbered, loops on bad input)
-- `PrintTable(string[] headers, List<string[]> rows)` (uses `PadRight` for columns)
+- `PromptDecimal(string label) → decimal` and `PromptDecimal(string label, decimal max) → decimal` (the overload enforces `value <= max`; use it for bounded values like AdoptionFee)
+- `PromptDateTime(string label) → DateTime` (uses `DateTime.TryParse`; loops on bad input. Single-locale assumption — see "Deliberate simplifications" below.)
+- `PromptChoice(string label, string[] options) → string` (numbered prompt, loops on bad input. Returns the **selected option text** — i.e. `options[choice - 1]` — so callers can assign the result directly to the field they're collecting: `animal.Gender = ConsoleUI.PromptChoice("Select gender:", new string[] { "Male", "Female" });`. No 1-based/0-based mapping needed at the call site.)
+- `PrintTable(string[] headers, List<string[]> rows)` (uses `PadRight` for columns; see "Calling PrintTable from a display screen" below for the calling pattern)
+
+`DrawHeaders` always shows the app brand (`AppName` constant) inside the box and prints the caller's `message` as a dark-cyan subtitle underneath, followed by a thin separator. This keeps every screen visually anchored to the app while letting the subtitle say what the current screen is for ("All animals — sorted by species", "Add a new animal", etc.).
 
 Color palette (applied inside helpers, never at call site):
 - **Cyan** — headers, labels
@@ -62,7 +64,7 @@ Color palette (applied inside helpers, never at call site):
 - **DarkGray** — secondary text ("press any key")
 - **Default** — regular content
 
-Box-drawing characters for `DrawHeader`: `╔ ═ ╗ ║ ╚ ╝`
+Box-drawing characters for `DrawHeaders`: `╔ ═ ╗ ║ ╚ ╝`, plus `─` for the subtitle separator.
 
 ### `Animal.cs`
 
@@ -72,22 +74,20 @@ Field order (document this at the top of the file). This order is how `ToLine` w
 
 1. `Id` — 8-digit zero-padded string (`"00000001"`)
 2. `Name` — string
-3. `Breed` — must be valid for the species via `BreedData` (`"unknown"` always valid)
+3. `Breed` — collected via `ConsoleUI.PromptChoice` from `BreedData[species]`, so the value is always one of the species' canonical breeds (or `"unknown"`, which appears in every species' list). No separate `IsValid` step — the closed list IS the validation.
 4. `Species` — one of: `Dog, Cat, Bird, Rabbit, Small & Furry, Fish, Barnyard, Other`
-5. `Birthday` — `DateTime`, formatted `"dd/MM/yyyy"`
+5. `Birthday` — `DateTime`, written via `ToShortDateString()` (machine's short-date pattern) so the file matches whatever the machine reads back with `DateTime.Parse`
 6. `SpayedOrNeutered` — `"Yes"` or `"No"`
-7. `Gender` — `"F"` or `"M"`
+7. `Gender` — `"Male"` or `"Female"`
 8. `Colour` — string
 9. `VaccineStatus` — `"Up to date"`, `"Late"`, or `"Unknown"`
 10. `IdentificationNumber` — string, may be empty
 11. `IdentificationType` — `"Bar code"`, `"Microchip"`, or `"None"`
 12. `AdoptionFee` — `decimal`, must be `< 300`
 
-`ToLine()` walks the properties and builds one pipe-delimited line **character by character** with `StringBuilder`. **No `string.Join`.**
+`ToLine()` builds one pipe-delimited line using string interpolation. `FromLine(string)` parses one such line using `string.Split('|')` and assigns the 12 fields in positional order. Keep both methods short and readable — they're the persistence boundary, and clarity matters more than novelty.
 
-`FromLine(string)` walks the line **character by character** with `StringBuilder`, splitting on `|` and assigning the 12 fields in order. **No `string.Split`.**
-
-The character-walk pattern is written out fully in *both* methods (build vs. read) so the student sees the symmetry. **Do not factor out a shared helper** — seeing the pattern twice is the point.
+> **Note (was previously a teaching rule).** Earlier drafts mandated a manual `StringBuilder` character-walk in both methods. That rule was dropped: the framework versions are clearer, less error-prone, and ship faster. The "build a parser by hand" exercise can live in a future personal project; it isn't earning its keep here.
 
 ### `AnimalRepository.cs`
 
@@ -112,7 +112,7 @@ Methods:
 
 ### `BreedData.cs`
 
-Static `Dictionary<string, string[]>` mapping species → valid breeds, plus an `IsValid(species, breed)` helper that returns true for `"unknown"` regardless of species.
+Static `Dictionary<string, string[]>` mapping species → list of canonical breeds. Every species' breed list ends with `"unknown"` so the user always has an escape hatch when they don't know (or there genuinely isn't) a more specific breed. The dictionary is the **source of choices** for `ConsoleUI.PromptChoice` in `AddAnimal` — there is no separate `IsValid` helper, because passing `BreedData[species]` to `PromptChoice` means the user can only pick a value from the list. Validation by construction.
 
 ### `Program.cs`
 
@@ -154,8 +154,7 @@ class Program
 
 These rules exist because judges and the teacher want to see manual work, not concise idiomatic C#. Breaking them defeats the point of the reference solution.
 
-- **No `string.Split` or `string.Join` in `Animal.cs`.** Serialization uses `StringBuilder` and a **character-by-character walk**. Pattern is written out in both `ToLine` and `FromLine`.
-- **No `File.ReadAllLines` / `File.WriteAllLines`.** Use `StreamReader`/`StreamWriter` with `while` loops in `AnimalRepository.cs`.
+- **No `File.ReadAllLines` / `File.WriteAllLines`.** Use `StreamReader`/`StreamWriter` with `while` loops in `AnimalRepository.cs`. (Reading line-by-line in a loop is the lesson here; the in-`Animal.cs` parsing of each line uses framework helpers like `string.Split` deliberately for clarity.)
 - **No LINQ in `Animal.cs`** (manual loops only). LINQ *is* allowed in `AnimalRepository.cs` queries (`Where`, `OrderBy`, `GroupBy`) where it aids clarity.
 - **`var` is OK in short local scopes** — inside a method body, when the type is obvious from the right-hand side (a `new` expression, a LINQ result, a clear literal). Avoid `var` for fields, properties, and anywhere the inferred type isn't self-evident. Explicit types remain the default; `var` is a shortcut, not the style.
 - **No `async`/`await`** — overkill and distracting.
@@ -166,35 +165,76 @@ These rules exist because judges and the teacher want to see manual work, not co
 
 These are conscious teaching decisions, not oversights. See `PEDAGOGY.md` for reasoning.
 
-- **Culture-sensitive parsing.** `DateTime.Parse` / `decimal.Parse` in `Animal.cs` use the current machine culture. `InvariantCulture` + `TryParseExact` would be more robust but pulls in a large globalization sub-topic that would derail the core lessons. The app assumes a single consistent machine locale. **Do not retrofit invariant-culture parsing unless the user explicitly asks.** The final `README.md` must include a "Known limitations" note making this assumption explicit.
+- **Culture-sensitive parsing throughout.** Both the interactive prompt (`ConsoleUI.PromptDateTime` → `DateTime.TryParse`) and the persistence layer (`Animal.cs` → `DateTime.Parse` / `decimal.Parse`) use the current machine culture. The single-machine assumption is the load-bearing simplification: the same machine that types data into the prompt also writes the file and reads it back, so producer and consumer agree on what `15/03/2020` (or whatever the machine's short-date pattern emits) means. `ToLine` uses `Birthday.ToShortDateString()` rather than a hardcoded format string so the file is written in whatever short-date pattern the machine uses; `FromLine` then reads it with the same machine's `DateTime.Parse`. **Do not retrofit invariant-culture parsing.** A previous attempt did exactly that and traded one bug (writer/reader format mismatch on en-CA Windows) for another (a hand-seeded `animals.txt` that no longer round-tripped). Trust the same-machine assumption — it's a teaching project, not a production system. The final `README.md` should include a "Known limitations" note saying the data file is **machine-culture-specific**: copy the `.exe` to a machine with a different short-date or decimal pattern and the file won't load.
 
 ## UI conventions
 
 Every screen:
-- Starts with `ConsoleUI.DrawHeader(title)` (clears screen, redraws double-line Unicode box).
+- Starts with `ConsoleUI.DrawHeaders(subtitle)` (clears screen, redraws the branded double-line Unicode box, prints the subtitle beneath).
 - Uses numbered menus only — no hotkeys, no arrow keys.
 - Ends with `ConsoleUI.Pause()` before returning to the menu.
 - Uses `ConsoleUI.PrintTable` for tabular output, not hand-rolled padding.
 
+### Calling `PrintTable` from a display screen
+
+This is new territory for the student. `PrintTable` is domain-agnostic — it only understands `string[] headers` and `List<string[]> rows`, so each display screen is responsible for turning its animals into that shape. Rationale for why this lives in the screen, not on `Animal`: different screens show different columns (Display All wants ID/Name/Species/Breed; Three Oldest wants Birthday in there; Search results may show the field that matched), so there is no single canonical row for an animal. A `ToRow()` method on `Animal` would either force every screen to look identical or sprawl into `ToRowShort` / `ToRowFull` / `ToRowSearch` — worse than a little repetition. `Animal.ToLine()` is the opposite situation: one frozen format for one customer (the file), so it earns its own method.
+
+Walk the student through the pattern in four explicit steps, **in this order**, every time a display screen is introduced in the workbook:
+
+1. **Declare the column headers as a local `string[]`.** Keep this at the top of the method so the reader sees what columns the screen shows without jumping to another file.
+2. **Create an empty `List<string[]> rows = new List<string[]>();`.** A `List` is used because row count is unknown until the loop finishes — arrays would force a second pass to count first.
+3. **Loop through the data (filtered / sorted as the screen requires). Inside the loop, build a `string[]` for the current animal and `rows.Add(...)` it.** The fields inside the row array **must** appear in the same order as the headers — this is parallel arrays. Call this out: index 0 of the row lines up with index 0 of the headers, index 1 with index 1, and so on. Mismatched order is the #1 bug in this pattern.
+4. **Call `ConsoleUI.PrintTable(headers, rows);`.** One line. `PrintTable` handles the width measurement, padding, header color, and separator — the screen does not.
+
+Canonical shape to show the student (use this exact skeleton, adapted per screen):
+
+```csharp
+private static void DisplayAllSortedBySpecies()
+{
+    ConsoleUI.DrawHeaders("All animals — sorted by species");
+
+    // 1. Headers for this screen.
+    string[] headers = new string[] { "ID", "Name", "Species", "Breed" };
+
+    // 2. An empty list to hold the rows we build.
+    List<string[]> rows = new List<string[]>();
+
+    // 3. One row per animal, fields in the same order as the headers.
+    foreach (Animal a in AnimalRepository.animals.OrderBy(a => a.Species))
+    {
+        rows.Add(new string[] { a.Id, a.Name, a.Species, a.Breed });
+    }
+
+    // 4. Hand off to the generic helper.
+    ConsoleUI.PrintTable(headers, rows);
+
+    ConsoleUI.Pause();
+}
+```
+
+Teaching notes to repeat when the student hits each display screen:
+- **The duplication across screens is intentional.** Three screens all typing `"ID", "Name", "Species"` is fine; abstracting it into a shared helper would hide which columns belong to which screen.
+- **`var rows = new List<string[]>()` is acceptable here** per the `var` rule — the type is obvious from the right-hand side, and it's a short local scope.
+- **Do not call `PrintTable` with zero rows without checking first.** If the filtered list is empty, print a `WriteLineColor("No animals found.", ConsoleColor.Yellow)` message instead — an empty table with just headers is confusing.
+
 ## Features (base / high-school tier)
 
-Add animal (with breed validation against species) · Remove by ID · Search by name or species · Display sorted by species · Display three oldest per species · Help/usage.
+Add animal (breed picked via PromptChoice from `BreedData[species]`) · Remove by ID · Search by name or species · Display sorted by species · Display three oldest per species · Help/usage.
 
 **Post-secondary tier** adds archive/restore and fee auto-calculation. **Do not build these until the base tier is complete and working.**
 
 ## Build order — thin vertical slice
 
-The goal is that **every step produces a runnable program**. Confront the hardest part (the manual character walk) early, while motivation is high, instead of after a week of UI chrome.
+The goal is that **every step produces a runnable program**.
 
 1. **`ConsoleUI.cs`** — full file. It's the paste-in tool, so build it once, completely.
-2. **`Animal.cs`** — properties only, plus stub `ToLine`/`FromLine` returning placeholders so the project compiles.
+2. **`Animal.cs`** — properties + `ToLine`/`FromLine` using string interpolation and `string.Split`. No further rewrite planned.
 3. **`BreedData.cs`** — populate one species fully (e.g. Dog), the rest later.
-4. **`AnimalRepository.cs`** — only `LoadFromFile`, `SaveToFile`, `Add`, `NextId` to start.
+4. **`AnimalRepository.cs`** — only `LoadFromFile`, `SaveToFile`, `Add`, `NextId` to start. Add `RemoveById`, `SearchByName`, `SearchBySpecies`, `GetSortedBySpecies`, `GetThreeOldestPerSpecies` as the screens that need them are built.
 5. **`Program.cs`** — `Main` + only the **Add** menu action wired end-to-end. Manually inspect `animals.txt` to confirm the format looks right.
-6. Flesh out `ToLine`/`FromLine` with the real character walk. Verify load round-trips correctly.
-7. Add Remove, Search, Display screens one at a time. Test each before moving to the next.
-8. Help screen + polish.
-9. `README.md` + screenshots last.
+6. Add Remove, Search, Display screens one at a time. Test each before moving to the next.
+7. Help screen + polish, fill out the rest of `BreedData` (every species' breed list, ending with `"unknown"`), and switch the Breed prompt in `AddAnimal` from `ConsoleUI.Prompt` to `ConsoleUI.PromptChoice(... , BreedData.Breeds[species])`.
+8. `README.md` + screenshots last.
 
 ## Deliverables
 

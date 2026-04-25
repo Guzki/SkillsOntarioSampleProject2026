@@ -13,9 +13,7 @@ In this part you'll:
 3. Write a first version of **`ToLine()`** — the method that turns one Animal into one line of text.
 4. Write a first version of **`FromLine(string)`** — the method that turns one line of text back into an Animal.
 
-> **Important:** the `ToLine` and `FromLine` you write in this part are **temporary**. They work, and they work quickly — which is exactly the point. You're going to use them to test the whole save-and-load pipeline in Part 3 before spending time on the version judges actually want to see. A later part rewrites both methods with a manual **character-by-character walk** using `StringBuilder` — no `string.Split`, no string interpolation. That's the teaching centerpiece of this project. For now you just need something that works so we can move on and come back.
->
-> **Why build it twice?** Because the character walk is the hardest single piece of code in the project. Confronting it on top of file I/O, menus, and validation all at once is how people get stuck. Build the easy version, prove the whole app round-trips through a file, *then* replace the engine with the one the judges want.
+> **The `ToLine` and `FromLine` you write here are the final versions** — string interpolation for the build side, `string.Split('|')` for the parse side. Earlier drafts of this project planned to rewrite both with a manual character-walk in `StringBuilder`. That plan was dropped because the framework versions are clearer, less error-prone, and ship faster. The "build a parser by hand" exercise is genuinely interesting, just not at the cost of the rest of the project.
 
 ---
 
@@ -122,7 +120,7 @@ Money math on `double`/`float` gives you rounding bugs. `$0.10 + $0.20` in `doub
 // Turns this Animal into one pipe-delimited line for saving to the file.
 public string ToLine()
 {
-    return $"{Id}|{Name}|{Breed}|{Species}|{Birthday.ToString("dd/MM/yyyy")}|{SpayedOrNeutered}|{Gender}|{Colour}|{VaccineStatus}|{IdentificationNumber}|{IdentificationType}|{AdoptionFee}";
+    return $"{Id}|{Name}|{Breed}|{Species}|{Birthday.ToShortDateString()}|{SpayedOrNeutered}|{Gender}|{Colour}|{VaccineStatus}|{IdentificationNumber}|{IdentificationType}|{AdoptionFee}";
 }
 ```
 
@@ -143,11 +141,9 @@ For an Animal with `Id = "00000001"`, `Name = "Rex"`, `Breed = "Labrador"`, `Spe
 
 That's one line of `animals.txt`. Many animals → many lines.
 
-> **Why we'll rewrite this later:** this version uses string interpolation, which is convenient but does a lot of work for you invisibly. In a later part you'll rewrite `ToLine` to build the string **character by character** using a `StringBuilder` — no interpolation, no `string.Join`. That rewrite teaches you what `$"..."` was doing behind your back, and it's what the judges want to see. For now, interpolation gets you a working save file in one line of code so you can keep moving.
-
 ---
 
-## Part 2d — Write FromLine (the easy version)
+## Part 2d — Write FromLine
 
 `FromLine` is the mirror image of `ToLine`. Given one line of the file, it returns a new `Animal` with the 12 fields filled in. Add this method **below** `ToLine`, still inside the class:
 
@@ -209,14 +205,14 @@ Same result, less noise.
 
 ### About `DateTime.Parse` and `decimal.Parse`
 
-- `DateTime.Parse(parts[4])` turns the string `"15/06/2019"` back into a real `DateTime`.
-- `decimal.Parse(parts[11])` turns `"250.00"` back into a `decimal` value.
+- `DateTime.Parse(parts[4])` turns the string back into a real `DateTime`, using the **machine's culture** to decide what date format to expect.
+- `decimal.Parse(parts[11])` does the same thing for the fee, using the machine's culture for the decimal separator (`.` or `,`).
 
-Both of these use the **current machine's locale** to interpret the input. That's fine for this project — the machine writing the file and the machine reading it are the same machine. A more careful production app would use `CultureInfo.InvariantCulture` and `DateTime.TryParseExact` to lock down the exact format, but that pulls in a large topic (cultures, number styles, exact vs. standard parsing) that isn't worth teaching mid-project. `PEDAGOGY.md` goes into the reasoning.
+The reason this works without any explicit format string is **symmetry**. `ToLine` writes the date with `Birthday.ToShortDateString()` — which uses the machine's short-date pattern, *whatever that happens to be*. `FromLine` reads it back with `DateTime.Parse`, which uses the same machine's short-date pattern. Producer and consumer agree because they're asking the same machine the same question.
 
-The prompt in the Add screen tells the user exactly what format to type (`dd/MM/yyyy`), and the Add screen's validation loop will catch unparseable input before it ever reaches the file. So in practice these `Parse` calls only ever see strings that `ToLine` wrote — and `ToLine` writes them cleanly.
+> **The single-machine assumption.** This works because the same machine that writes the file is the one that reads it. If you copied `animals.txt` from a machine whose short-date is `dd/MM/yyyy` to one whose short-date is `MM/dd/yyyy`, the dates wouldn't load — `15/03/2020` is ambiguous depending on which culture you ask. We accept that limitation because the deliverable is a single `.exe` + `.txt` that runs and saves on one machine. A production app would lock the file format with `InvariantCulture` and an explicit format string, but that pulls in a globalization sub-topic worth a course of its own.
 
-> **Why we'll rewrite this later:** `string.Split('|')` does the whole parse in one call. The judges' version parses the line **character by character** using a `StringBuilder` — reading one character at a time, appending to a buffer, and emitting a field every time the character is `|`. That's the teaching pair to the character-by-character version of `ToLine`. You'll see both together in a later part. For now, `Split` gets you a working load path in two lines so Part 3 can actually test file round-tripping.
+The Add screen's prompts use `DateTime.TryParse` for the same culture reason — whatever the user types, the machine decides if it's a valid date. The prompt label tells them the expected format.
 
 ---
 
@@ -278,6 +274,5 @@ Press **F5**. You should see the **same line printed twice** — once from `a.To
 - [ ] `ToLine()` is an instance method that returns a pipe-delimited string, with `Birthday` formatted as `"dd/MM/yyyy"`.
 - [ ] `FromLine(string)` is a `public static` method that returns a new `Animal`.
 - [ ] I ran the round-trip test in `Main` and saw the same line printed twice. Then I deleted the test code.
-- [ ] **I understand that `ToLine` and `FromLine` will be rewritten later** using a character-by-character walk with `StringBuilder` — and that the current versions are the "working but temporary" placeholders.
 
 When every box is checked, the `Animal` class is good enough to build on. **Next part:** `AnimalRepository` — a static class that holds the whole list of animals and (once it all works) saves them to a file.

@@ -3,8 +3,8 @@
 // Animal Rescue Management System — Skills Ontario (Reference Solution)
 // Represents one animal in the shelter. Holds the 12 fields below and converts
 // to/from a single pipe-delimited line of text for saving to animals.txt.
-// NOTE: ToLine and FromLine currently use string interpolation and string.Split.
-// A later workbook part rewrites both with a manual StringBuilder character-walk.
+// ToLine uses string interpolation; FromLine uses string.Split('|'). Both stay
+// short on purpose — this is the persistence boundary, and clarity wins.
 // Reference: workbook/02-animal-class.md
 // =============================================================================
 
@@ -38,7 +38,7 @@ namespace SkillsOntarioSampleProject2026
 		// The field order here MUST match FromLine below.
 		public string ToLine()
 		{
-			return $"{Id}|{Name}|{Breed}|{Species}|{Birthday.ToString("dd/MM/yyyy")}|{SpayedOrNeutered}|{Gender}|{Colour}|{VaccineStatus}|{IdentificationNumber}|{IdentificationType}|{AdoptionFee}";
+			return $"{Id}|{Name}|{Breed}|{Species}|{Birthday.ToShortDateString()}|{SpayedOrNeutered}|{Gender}|{Colour}|{VaccineStatus}|{IdentificationNumber}|{IdentificationType}|{AdoptionFee}";
 		}
 
 		// Parses one pipe-delimited line into a new Animal.

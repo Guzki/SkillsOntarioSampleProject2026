@@ -1,10 +1,11 @@
 ﻿// =============================================================================
 // BreedData.cs
 // Animal Rescue Management System — Skills Ontario (Reference Solution)
-// Reference data + validation for breed-per-species rules.
-// Placeholder — fleshed out in a later workbook part when the Add screen
-// gains breed validation. "unknown" is always a valid breed for any species.
-// Reference: workbook/06-breed-validation.md (upcoming)
+// Reserved for the optional breed-list extension. The base AddAnimal screen
+// collects Breed via free-text Prompt; if you switch it to PromptChoice for
+// a closed list, populate this class with a Dictionary<string, string[]>
+// mapping each species to its canonical breeds. See workbook/08-polish-
+// and-deliver.md Part 8c for the full pattern. Skipped at the base tier.
 // =============================================================================
 
 using System;

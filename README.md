@@ -13,13 +13,22 @@ This repository serves two audiences:
 
 ## Status
 
-Work-in-progress reference. Current state:
+**Base tier complete.** Every menu action works end-to-end:
 
-- Animal data class — complete (temporary `ToLine` / `FromLine` using string interpolation and `string.Split`; a later part rewrites both with a manual character-walk).
-- In-memory repository with save/load — complete.
-- Add animal screen — complete for Name, Species, Birthday, Adoption Fee.
-- Search / Update / Delete — stubs. Coming in upcoming workbook parts.
-- `ConsoleUI` helper class and breed validation — partial / coming.
+- `Animal` data class with 12 fields + `ToLine`/`FromLine` round-tripping through `animals.txt`.
+- `AnimalRepository` static class — in-memory list, save/load via `StreamReader`/`StreamWriter`, ID generator.
+- `ConsoleUI` helper class — colored output, validated prompts (int/double/decimal/decimal-with-max/datetime/choice), branded headers, table renderer.
+- **Add animal** — all 12 fields collected via ConsoleUI prompts and `PromptChoice` lookups.
+- **Remove animal** — quick reference table + ID lookup with `PadLeft` shorthand.
+- **Search animals** — single search term matches name OR species (case-insensitive substring); blank shows all.
+- **Display all (sorted by species)** — six headline columns, optional species filter via `PromptChoice`.
+- **Display three oldest per species** — LINQ `GroupBy` + `OrderBy` + `Take(3)` with a clean two-step pattern (no `SelectMany`).
+- **Help** — branded screen explaining menu, save file, and the single-machine date-format assumption.
+- **Crash-resistant menu loop** — every action wrapped in try/catch; the app reports errors in red and keeps running.
+
+**Optional extension** (workbook Part 9): adopters + adoptions tables linked by foreign-key IDs, with manual LINQ joins. Beyond the base scope; not part of the comp deliverable.
+
+**Optional polish** (workbook Part 8c): switching the Breed prompt from free-text `Prompt` to `PromptChoice` sourced from `BreedData[species]` once `BreedData.cs` is populated.
 
 ---
 
