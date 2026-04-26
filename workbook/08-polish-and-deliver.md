@@ -96,10 +96,6 @@ Walk through every `.cs` file and update any out-of-date file-header references.
 
 - **`Animal.cs`** — verify the file-header comment matches the current implementation (string interpolation in `ToLine`, `string.Split` in `FromLine`, `ToShortDateString()` for the date). If it references PEDAGOGY.md for "why we skip globalization," that note's still fine — the single-machine assumption is intentionally retained.
 
-- **`BreedData.cs`** — the file is currently empty (`public class BreedData {}`) with a stale comment referencing `workbook/06-breed-validation.md (upcoming)`. Two options:
-  - **Leave it empty and delete the file**, removing the entry from the project. The breed prompt in `AddAnimal` is free-text, no class needed.
-  - **Populate it as a simple lookup** for a future PromptChoice retrofit (see 8c below). If you go this route, update the file-header comment to reference Part 8 instead of the missing workbook part.
-
 - **`Program.cs:32`** (the menu loop) — the stray `Console.WriteLine(DateTime.Now.ToShortDateString());` debug line. Delete it.
 
 - **`Program.cs:26`** — `//AnimalRepository.LoadFromFile();` is **commented out**. **Uncomment it.** This is a critical fix — without it, the app starts with an empty list every time and ignores `animals.txt`. Easy to miss because the bug only shows up on second launch.
@@ -108,80 +104,11 @@ Walk through every `.cs` file and update any out-of-date file-header references.
 
 ### Test after each cleanup
 
-After each edit, hit `Ctrl+Shift+B` to make sure it still compiles. If you delete `BreedData.cs`, also remove its `<Compile Include="BreedData.cs" />` line from the `.csproj` (Visual Studio usually does this for you).
+After each edit, hit `Ctrl+Shift+B` to make sure it still compiles.
 
 ---
 
-## Part 8c — (Optional) Populate `BreedData` and switch the breed prompt to `PromptChoice`
-
-If you want the breed input to be a closed list instead of free-text, do this. It's the only "feature add" left in the project. Skip it if the student is short on time — the project is functionally complete without it.
-
-### Populate `BreedData.cs`
-
-```csharp
-using System.Collections.Generic;
-
-namespace SkillsOntarioSampleProject2026
-{
-    // Lookup table mapping each species to its canonical breed list. Used by
-    // the Breed prompt in AddAnimal — passing BreedData.Breeds[species] to
-    // ConsoleUI.PromptChoice means the user can only pick a value from the
-    // list, so the closed list IS the validation.
-    public static class BreedData
-    {
-        public static readonly Dictionary<string, string[]> Breeds = new Dictionary<string, string[]>
-        {
-            { "Dog", new[]
-                {
-                    "Labrador Retriever", "Golden Retriever", "Beagle", "Bulldog",
-                    "Border Collie", "Boxer", "Dachshund", "German Shepherd",
-                    "Standard Poodle", "Mixed", "unknown"
-                }
-            },
-            { "Cat", new[]
-                {
-                    "Domestic Shorthair", "Maine Coon", "Siamese", "Bengal",
-                    "Russian Blue", "Tuxedo", "Persian", "unknown"
-                }
-            },
-            { "Bird", new[] { "Canary", "Cockatiel", "Budgerigar", "African Grey", "unknown" } },
-            { "Rabbit", new[] { "Lop", "Holland Lop", "New Zealand White", "Mini Rex", "unknown" } },
-            { "Small & Furry", new[] { "Syrian Hamster", "Roborovski Hamster", "Guinea Pig", "Ferret", "unknown" } },
-            { "Fish", new[] { "Goldfish", "Clownfish", "Betta", "unknown" } },
-            { "Barnyard", new[] { "Holstein", "Jersey Cow", "Pot-bellied Pig", "Nigerian Dwarf Goat", "unknown" } },
-            { "Other", new[] { "Hedgehog", "Tortoise", "Iguana", "Corn Snake", "unknown" } }
-        };
-    }
-}
-```
-
-Every species' breed list ends with `"unknown"` — the always-valid escape hatch. Add new breeds as the student finds them in the data; this list isn't sacred.
-
-### Update `AddAnimal` to use the lookup
-
-In `Program.cs`, change:
-
-```csharp
-newAnimal.Breed = ConsoleUI.Prompt("Enter Breed: ");
-```
-
-…to:
-
-```csharp
-newAnimal.Breed = ConsoleUI.PromptChoice("Select Breed: ", BreedData.Breeds[newAnimal.Species]);
-```
-
-This works because **`Species` is collected before `Breed`** in `AddAnimal` — by the time you ask for the breed, you already know which species's breed list to show. If you reordered the prompts, this would break.
-
-### Test
-
-- ✅ Add an animal, choose Species = `Dog` → see a numbered list of dog breeds → pick one → continue.
-- ✅ Repeat with Species = `Other` → see hedgehog/tortoise/etc.
-- ✅ Existing animals' breeds (read from `animals.txt`) keep their original values — `BreedData` is only consulted on the way *in* via PromptChoice, not on the way *out* during display.
-
----
-
-## Part 8d — Write the final `README.md`
+## Part 8c — Write the final `README.md`
 
 The README is what a stranger sees first. Make it useful in under a minute of reading.
 
@@ -242,7 +169,6 @@ to `animals.txt` in the same folder as the `.exe`.
 | `Animal.cs` | The Animal data class + ToLine/FromLine for persistence |
 | `AnimalRepository.cs` | Static class holding the in-memory list and file I/O |
 | `ConsoleUI.cs` | Reusable colored prompts and table renderer |
-| `BreedData.cs` | Optional: species → breed list for the Add screen |
 
 ## Known limitations
 
@@ -271,7 +197,7 @@ Save them in `screenshots/` next to the README. Reference them in the Screenshot
 
 ---
 
-## Part 8e — Final Release build + standalone test
+## Part 8d — Final Release build + standalone test
 
 Same fresh-folder sanity check from Part 4, but final.
 
@@ -294,7 +220,7 @@ If anything fails, fix it and rebuild. Don't ship a known-broken `.exe`.
 
 ---
 
-## Part 8f — Package the deliverable
+## Part 8e — Package the deliverable
 
 The competition deliverable is `FirstName_LastName.zip` containing source + `bin\Release\` + `README.md`. From the project root:
 

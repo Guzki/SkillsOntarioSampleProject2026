@@ -28,8 +28,6 @@ This repository serves two audiences:
 
 **Optional extension** (workbook Part 9): adopters + adoptions tables linked by foreign-key IDs, with manual LINQ joins. Beyond the base scope; not part of the comp deliverable.
 
-**Optional polish** (workbook Part 8c): switching the Breed prompt from free-text `Prompt` to `PromptChoice` sourced from `BreedData[species]` once `BreedData.cs` is populated.
-
 ---
 
 ## Building and running
@@ -82,9 +80,9 @@ Fields in the locked order:
 
 ## Known limitations
 
-- **Single-locale assumption.** `DateTime.Parse` and `decimal.Parse` use the current machine culture. The app is expected to run on an English-locale Windows machine. Cross-culture file round-tripping is not guaranteed. See `PEDAGOGY.md` for the reasoning behind deliberately skipping globalization as a teaching topic.
-- **Breed validation is not yet enforced.** Any breed string is currently accepted. Enforcement is planned for a later workbook part.
-- **Several menu actions are placeholders.** Search, Update, and Delete currently print a stub message and return. Implementation is upcoming.
+- **Single-machine save files.** `DateTime.Parse` and `decimal.Parse` use the current machine culture, and `ToLine` writes via `ToShortDateString()`. The same machine reads what it just wrote, so round-trips are reliable in normal use — but copying `animals.txt` (or `adopters.txt` / `adoptions.txt`) to a machine with a different short-date or decimal pattern may not load cleanly.
+- **No undo, no backup.** A `Remove` is immediate and final; the save file is overwritten on every change. Likewise an adoption returned via Part 9 flips status but a deleted adopter or animal cannot be recovered.
+- **Breed is free text.** Any string is accepted — there is no closed-list validation.
 
 ---
 
@@ -94,9 +92,14 @@ Fields in the locked order:
 SkillsOntarioSampleProject2026/
 ├── Animal.cs                         // Animal data class + ToLine / FromLine
 ├── AnimalRepository.cs               // static in-memory list + file I/O
-├── BreedData.cs                      // (placeholder) breed-per-species rules
 ├── ConsoleUI.cs                      // reusable prompts / display helpers
 ├── Program.cs                        // Main + menu loop + screen methods
+│
+├── Adopter.cs                        // (Part 9) Adopter data class
+├── AdopterRepository.cs              // (Part 9) adopter list + file I/O
+├── Adoption.cs                       // (Part 9) link record (animal ↔ adopter)
+├── AdoptionRepository.cs             // (Part 9) adoption list + file I/O + finders
+│
 ├── SkillsOntarioSampleProject2026.sln
 ├── SkillsOntarioSampleProject2026.csproj
 │
@@ -109,7 +112,12 @@ SkillsOntarioSampleProject2026/
     ├── 01-project-setup.md           // creating the project in Visual Studio
     ├── 02-animal-class.md            // the Animal data class
     ├── 03-repository.md              // static class + in-memory list + file I/O
-    └── 04-add-screen.md              // Add screen + full deployment test
+    ├── 04-add-screen.md              // Add screen + full deployment test
+    ├── 05-console-ui.md              // ConsoleUI helpers + AddAnimal retrofit
+    ├── 06-remove-and-search.md       // find-and-act screens
+    ├── 07-three-oldest-per-species.md // LINQ chapter (GroupBy + challenges)
+    ├── 08-polish-and-deliver.md      // Help retrofit + README + zip
+    └── 09-adopters-and-adoptions.md  // (beyond scope) relational extension
 ```
 
 ---

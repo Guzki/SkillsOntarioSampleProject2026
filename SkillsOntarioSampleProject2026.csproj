@@ -64,7 +64,6 @@
     <Compile Include="AdoptionRepository.cs" />
     <Compile Include="Animal.cs" />
     <Compile Include="AnimalRepository.cs" />
-    <Compile Include="BreedData.cs" />
     <Compile Include="ConsoleUI.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

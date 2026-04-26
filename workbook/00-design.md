@@ -224,6 +224,8 @@ An Animal "knows" what breeds are valid for its own species, via a static helper
 
 But Option B is defensible if you really dislike having an extra file for something this small. Just make sure you're picking B **because you decided**, not because you couldn't be bothered.
 
+> **Postscript — what this project actually shipped.** As the build progressed we ended up dropping breed validation entirely: the `Add Animal` screen takes Breed as free text (any string the user types is accepted). No `BreedData.cs`, no `IsValid` check. The design exercise above is still worth doing — it teaches the "where does this responsibility live?" question every domain class eventually faces — but it's no longer load-bearing for this codebase. If you decide to add a closed breed list later, Option A's pattern is the one to follow.
+
 #### Worksheet
 
 ```
@@ -253,11 +255,11 @@ Here's roughly what the diagram should look like for this project:
                                       │
                                       ▼
                               ┌────────────┐
-                              │   Animal   │──▶ ┌────────────┐
-                              └────────────┘    │ BreedData  │
-                                                └────────────┘
-                                                (if Option A)
+                              │   Animal   │
+                              └────────────┘
 ```
+
+(In an earlier draft we'd have had a `BreedData` box hanging off `Animal` for breed validation — Option A from Question 6. We dropped that piece, so the diagram simplified to the four boxes shown.)
 
 #### Things to check on your diagram
 

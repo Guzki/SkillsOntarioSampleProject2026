@@ -27,13 +27,12 @@ Release output lands in `bin\Release\SkillsOntarioSampleProject2026.exe`. That `
 
 There is no test project and none is planned — out of scope for the competition and the student's time budget.
 
-## Architecture (5 files, flat)
+## Architecture (4 files, flat — base tier)
 
-Keep the whole solution to five source files. No interfaces, no DI, no abstractions beyond what's listed.
+Keep the base solution to four source files. No interfaces, no DI, no abstractions beyond what's listed. The optional Part 9 extension adds four more files (`Adopter.cs`, `Adoption.cs`, `AdopterRepository.cs`, `AdoptionRepository.cs`) — same shape, mirroring the animal pair.
 
 ```
 ConsoleUI.cs        — pre-built static TUI helper class (paste-in at comp)
-BreedData.cs        — static Dictionary<string, string[]> species → canonical breeds (used as the choice list for breed PromptChoice)
 Animal.cs           — 12 properties + ToLine() + FromLine(string)
 AnimalRepository.cs — static class, owns the List<Animal>, file I/O + queries
 Program.cs          — Main + menu loop + one method per menu action
@@ -74,7 +73,7 @@ Field order (document this at the top of the file). This order is how `ToLine` w
 
 1. `Id` — 8-digit zero-padded string (`"00000001"`)
 2. `Name` — string
-3. `Breed` — collected via `ConsoleUI.PromptChoice` from `BreedData[species]`, so the value is always one of the species' canonical breeds (or `"unknown"`, which appears in every species' list). No separate `IsValid` step — the closed list IS the validation.
+3. `Breed` — free-text via `ConsoleUI.Prompt`. No closed-list validation in the base tier; the user types whatever they want (`"Labrador Retriever"`, `"Mixed"`, `"unknown"`, etc.). A previous draft proposed a `BreedData.cs` lookup with `PromptChoice`-driven validation, but it was dropped from scope.
 4. `Species` — one of: `Dog, Cat, Bird, Rabbit, Small & Furry, Fish, Barnyard, Other`
 5. `Birthday` — `DateTime`, written via `ToShortDateString()` (machine's short-date pattern) so the file matches whatever the machine reads back with `DateTime.Parse`
 6. `SpayedOrNeutered` — `"Yes"` or `"No"`
@@ -109,10 +108,6 @@ Methods:
 - `GetSortedBySpecies()` — LINQ `OrderBy` allowed
 - `GetThreeOldestPerSpecies()` — LINQ `GroupBy` + `OrderBy(Birthday)` + `Take(3)`
 - `NextId()` — **private**. Scans the list for the max numeric `Id`, adds 1, formats `D8`. Only `AddAnimal` calls it; callers never assign IDs themselves.
-
-### `BreedData.cs`
-
-Static `Dictionary<string, string[]>` mapping species → list of canonical breeds. Every species' breed list ends with `"unknown"` so the user always has an escape hatch when they don't know (or there genuinely isn't) a more specific breed. The dictionary is the **source of choices** for `ConsoleUI.PromptChoice` in `AddAnimal` — there is no separate `IsValid` helper, because passing `BreedData[species]` to `PromptChoice` means the user can only pick a value from the list. Validation by construction.
 
 ### `Program.cs`
 
@@ -219,7 +214,7 @@ Teaching notes to repeat when the student hits each display screen:
 
 ## Features (base / high-school tier)
 
-Add animal (breed picked via PromptChoice from `BreedData[species]`) · Remove by ID · Search by name or species · Display sorted by species · Display three oldest per species · Help/usage.
+Add animal · Remove by ID · Search by name or species · Display sorted by species · Display three oldest per species · Help/usage.
 
 **Post-secondary tier** adds archive/restore and fee auto-calculation. **Do not build these until the base tier is complete and working.**
 
@@ -229,12 +224,11 @@ The goal is that **every step produces a runnable program**.
 
 1. **`ConsoleUI.cs`** — full file. It's the paste-in tool, so build it once, completely.
 2. **`Animal.cs`** — properties + `ToLine`/`FromLine` using string interpolation and `string.Split`. No further rewrite planned.
-3. **`BreedData.cs`** — populate one species fully (e.g. Dog), the rest later.
-4. **`AnimalRepository.cs`** — only `LoadFromFile`, `SaveToFile`, `Add`, `NextId` to start. Add `RemoveById`, `SearchByName`, `SearchBySpecies`, `GetSortedBySpecies`, `GetThreeOldestPerSpecies` as the screens that need them are built.
-5. **`Program.cs`** — `Main` + only the **Add** menu action wired end-to-end. Manually inspect `animals.txt` to confirm the format looks right.
-6. Add Remove, Search, Display screens one at a time. Test each before moving to the next.
-7. Help screen + polish, fill out the rest of `BreedData` (every species' breed list, ending with `"unknown"`), and switch the Breed prompt in `AddAnimal` from `ConsoleUI.Prompt` to `ConsoleUI.PromptChoice(... , BreedData.Breeds[species])`.
-8. `README.md` + screenshots last.
+3. **`AnimalRepository.cs`** — only `LoadFromFile`, `SaveToFile`, `Add`, `NextId` to start. Inline LINQ at the screen call sites is fine; promote a query into a named repository method only when it has a domain meaning (e.g. `GetActiveAdoptionForAnimal`).
+4. **`Program.cs`** — `Main` + only the **Add** menu action wired end-to-end. Manually inspect `animals.txt` to confirm the format looks right.
+5. Add Remove, Search, Display screens one at a time. Test each before moving to the next.
+6. Help screen + polish.
+7. `README.md` + screenshots last.
 
 ## Deliverables
 
